@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Processing App</title>
+</head>
+<style>
+    body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        input[type="file"] {
+            display: block;
+            margin: 0 auto;
+        }
+
+        select {
+            display: block;
+            margin: 0 auto;
+            padding: 5px;
+            width: 200px;
+        }
+
+        button {
+            display: block;
+            margin: 5px auto;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+            transition: 400ms;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+
+</style>
+<body>
+    <h1>Image Processing App</h1>
+    
+    <input type="file" id="uploadInput">
+    <br><br>
+    
+    <select id="operationSelect">
+        <option value="grayscale">Grayscale</option>
+        <option value="blur">Blur</option>
+        <option value="color_inversion">Color Inversion</option>
+    </select>
+    <br><br>
+
+    <button onclick="processImage()">Process Image</button>
+
+    <script>
+        function processImage() {
+            var uploadInput = document.getElementById('uploadInput');
+            var operationSelect = document.getElementById('operationSelect');
+            var file = uploadInput.files[0];
+            var operation = operationSelect.value;
+
+            if (file && operation) {
+                var formData = new FormData();
+                formData.append('image', file);
+                formData.append('operation', operation);
+
+                fetch('http://127.0.0.1:5000/process_image', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to process image');
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    var url = window.URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'processed_image.jpg';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            } else {
+                alert('Please select an image and an operation.');
+            }
+        }
+    </script>
+</body>
+</html>
