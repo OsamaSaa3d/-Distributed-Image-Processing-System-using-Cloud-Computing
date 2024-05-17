@@ -75,7 +75,7 @@
                     </select>
                 </div>
                 <div class="form-group text-center">
-                    <button class="btn btn-success btn-lg mt-3" onclick="processImage()">
+                    <button class="btn btn-success btn-lg mt-3" id="processImgBtn" onclick="processImage()">
                         <i class="fas fa-cogs"></i> Process Image
                     </button>
                 </div>
@@ -95,23 +95,23 @@
                     <h4 class="mt-4">Node Status</h4>
                     <div class="node-status">
                         <button class="btn btn-status btn-secondary" id="masterNodeStatus"><span
-                                class="node-name">Master Node</span><span>Unknown</span></button>
+                                class="node-name">Master Node</span><span id='masternode'>loading...</span></button>
                     </div>
                     <div class="node-status">
                         <button class="btn btn-status btn-secondary" id="workerNode1Status"><span
-                                class="node-name">Worker Node 1</span><span>Unknown</span></button>
+                                class="node-name">Worker Node 1</span><span id='worker1'>loading...</span></button>
                     </div>
                     <div class="node-status">
                         <button class="btn btn-status btn-secondary" id="workerNode2Status"><span
-                                class="node-name">Worker Node 2</span><span>Unknown</span></button>
+                                class="node-name">Worker Node 2</span><span id='worker2'>loading...</span></button>
                     </div>
                     <div class="node-status">
                         <button class="btn btn-status btn-secondary" id="workerNode3Status"><span
-                                class="node-name">Worker Node 3</span><span>Unknown</span></button>
+                                class="node-name">Worker Node 3</span><span id='worker3'>loading...</span></button>
                     </div>
                     <div class="node-status">
                         <button class="btn btn-status btn-secondary" id="workerNode4Status"><span
-                                class="node-name">Worker Node 4</span><span>Unknown</span></button>
+                                class="node-name">Worker Node 4</span><span id='worker4'>loading...</span></button>
                     </div>
                 </div>
             </div>
@@ -140,17 +140,21 @@
             var errorOperation = document.getElementById('errorOperation');
             var errorFetch = document.getElementById('errorFetch');
             var progressBar = document.getElementById('progressBar');
-
+            var processImgBtn = document.getElementById('processImgBtn');
             // Hide all error messages
             errorImage.classList.add('d-none');
             errorOperation.classList.add('d-none');
             errorFetch.classList.add('d-none');
+            
+            processImgBtn.disabled = true;
 
             if (!file) {
                 errorImage.classList.remove('d-none');
+                processImgBtn.disabled = false;
             }
             if (!operation) {
                 errorOperation.classList.remove('d-none');
+                processImgBtn.disabled = false;
             }
             if (file && operation) {
                 var formData = new FormData();
@@ -161,13 +165,14 @@
                 progressBar.textContent = '0%';
                 progressBar.classList.add('progress-bar-striped', 'progress-bar-animated');
 
-                fetch('http://127.0.0.1:5000/process_image', {
+                fetch('http://16.171.176.44:5000/process_image', {
                     method: 'POST',
                     body: formData
                 })
                     .then(response => {
                         if (!response.ok) {
                             throw new Error('Failed to process image');
+                            processImgBtn.disabled = false;
                         }
                         return response.blob();
                     })
@@ -184,15 +189,17 @@
                         progressBar.style.width = '100%';
                         progressBar.textContent = '100%';
                         progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated');
+                        processImgBtn.disabled = false;
                     })
                     .catch(error => {
                         console.error('Error:', error);
                         errorFetch.textContent = error.message;
                         errorFetch.classList.remove('d-none');
+                        processImgBtn.disabled = false;
                     });
             }
         }
-
+        /*
         function updateNodeStatus(nodeId, status) {
             var node = document.getElementById(nodeId);
             var statusText = node.querySelector('span:last-child');
@@ -213,7 +220,56 @@
         updateNodeStatus('workerNode2Status', 'Offline');
         updateNodeStatus('workerNode3Status', 'Online');
         updateNodeStatus('workerNode4Status', 'Offline');
+        */
     </script>
+
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script>
+        const socket = io('http://13.60.62.85:5001');
+
+        socket.on('connect', () => {
+                console.log('Connected to WebSocket server');
+        });
+
+        socket.on('status', (data) => {
+                console.log(data.message);
+        });
+        /*
+        socket.on('node_status', (statuses) => {
+                console.log('Received statuses:', statuses);
+                updateNodeStatus('masterNodeStatus', statuses['i-01a28545a12ed89df']);
+                updateNodeStatus('workerNode1Status', statuses['i-0339bfe4046feb681']);
+                updateNodeStatus('workerNode2Status', statuses['i-081cc29642db6b146']);
+                updateNodeStatus('workerNode3Status', statuses['i-0141d647c9071826e']);
+                updateNodeStatus('workerNode4Status', statuses['i-027ebee0933814be0']);
+                // Add similar lines for all your worker nodes
+        });
+        */
+        socket.on('node_status', (statuses) => {
+                console.log('Received statuses:', statuses);
+                updateNodeStatus('masterNodeStatus', statuses['masterNodeStatus']);
+                updateNodeStatus('workerNode1Status', statuses['workerNode1Status']);
+                updateNodeStatus('workerNode2Status', statuses['workerNode2Status']);
+                updateNodeStatus('workerNode3Status', statuses['workerNode3Status']);
+                updateNodeStatus('workerNode4Status', statuses['workerNode4Status']);
+                // Add similar lines for all your worker nodes
+        });
+
+        function updateNodeStatus(nodeId, status) {
+                const node = document.getElementById(nodeId);
+                const statusText = node.querySelector('span:last-child');
+                statusText.textContent = status;
+                node.className = 'btn btn-status';
+                if (status.includes('running')) {
+                        node.classList.add('btn-success');
+                } else if (status === 'stopped') {
+                        node.classList.add('btn-danger');
+                } else {
+                        node.classList.add('btn-secondary');
+                }
+        }
+        </script>
+
 
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
