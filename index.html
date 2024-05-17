@@ -1,78 +1,150 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Processing App</title>
-</head>
-<style>
-    body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .card {
+            max-width: 500px;
+            margin: auto;
         }
 
-        h1 {
+        .form-group button {
+            width: 100%;
+        }
+
+        .node-status {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 60px;
+            margin-top: 10px;
+        }
+
+        .btn-status {
+            width: 100px;
             text-align: center;
+            pointer-events: none;
         }
 
-        input[type="file"] {
+        .btn-status .node-name {
+            font-weight: bold;
             display: block;
-            margin: 0 auto;
         }
 
-        select {
-            display: block;
-            margin: 0 auto;
-            padding: 5px;
-            width: 200px;
+        @media (max-width: 576px) {
+            .form-control-lg {
+                font-size: 1rem;
+                padding: .5rem .75rem;
+            }
+
+            .btn-lg {
+                font-size: 1rem;
+                padding: .5rem .75rem;
+            }
         }
+    </style>
+</head>
 
-        button {
-            display: block;
-            margin: 5px auto;
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background-color: #0056b3;
-            transition: 400ms;
-        }
-
-        button:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-
-
-</style>
 <body>
-    <h1>Image Processing App</h1>
-    
-    <input type="file" id="uploadInput">
-    <br><br>
-    
-    <select id="operationSelect">
-        <option value="grayscale">Grayscale</option>
-        <option value="blur">Blur</option>
-        <option value="color_inversion">Color Inversion</option>
-    </select>
-    <br><br>
-
-    <button onclick="processImage()">Process Image</button>
+    <div class="container mt-5">
+        <div class="card">
+            <div class="card-header text-center">
+                <h1>Image Processing App</h1>
+            </div>
+            <div class="card-body">
+                <div class="form-group text-center">
+                    <label for="uploadInput" class="btn btn-info btn-lg">
+                        <i class="fas fa-upload"></i> Upload Image
+                    </label>
+                    <input type="file" class="form-control-file" id="uploadInput" style="display: none;"
+                        onchange="displayFileName()">
+                    <div id="fileName" class="mt-2"></div>
+                </div>
+                <div class="form-group text-center">
+                    <label for="operationSelect" class="font-weight-bold">Select Operation</label>
+                    <select class="form-control form-control-lg mt-2" id="operationSelect">
+                        <option value="">Select an operation</option>
+                        <option value="grayscale">Grayscale</option>
+                        <option value="blur">Blur</option>
+                        <option value="color_inversion">Color Inversion</option>
+                    </select>
+                </div>
+                <div class="form-group text-center">
+                    <button class="btn btn-success btn-lg mt-3" onclick="processImage()">
+                        <i class="fas fa-cogs"></i> Process Image
+                    </button>
+                </div>
+                <div class="form-group text-center">
+                    <div id="errorImage" class="alert alert-danger d-none" role="alert">Please select an image.</div>
+                    <div id="errorOperation" class="alert alert-danger d-none" role="alert">Please select an operation.
+                    </div>
+                    <div id="errorFetch" class="alert alert-danger d-none" role="alert">Failed to process image.</div>
+                </div>
+                <div class="form-group text-center">
+                    <h4 class="mt-4">Node Status</h4>
+                    <div class="node-status">
+                        <button class="btn btn-status btn-secondary" id="masterNodeStatus"><span
+                                class="node-name">Master Node</span><span>Unknown</span></button>
+                    </div>
+                    <div class="node-status">
+                        <button class="btn btn-status btn-secondary" id="workerNode1Status"><span
+                                class="node-name">Worker Node 1</span><span>Unknown</span></button>
+                    </div>
+                    <div class="node-status">
+                        <button class="btn btn-status btn-secondary" id="workerNode2Status"><span
+                                class="node-name">Worker Node 2</span><span>Unknown</span></button>
+                    </div>
+                    <div class="node-status">
+                        <button class="btn btn-status btn-secondary" id="workerNode3Status"><span
+                                class="node-name">Worker Node 3</span><span>Unknown</span></button>
+                    </div>
+                    <div class="node-status">
+                        <button class="btn btn-status btn-secondary" id="workerNode4Status"><span
+                                class="node-name">Worker Node 4</span><span>Unknown</span></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
+        function displayFileName() {
+            var uploadInput = document.getElementById('uploadInput');
+            var fileName = document.getElementById('fileName');
+            if (uploadInput.files.length > 0) {
+                fileName.textContent = 'File: ' + uploadInput.files[0].name;
+                fileName.classList.add('alert', 'alert-success');
+            } else {
+                fileName.textContent = '';
+                fileName.classList.remove('alert', 'alert-success');
+            }
+        }
+
         function processImage() {
             var uploadInput = document.getElementById('uploadInput');
             var operationSelect = document.getElementById('operationSelect');
             var file = uploadInput.files[0];
             var operation = operationSelect.value;
+            var errorImage = document.getElementById('errorImage');
+            var errorOperation = document.getElementById('errorOperation');
+            var errorFetch = document.getElementById('errorFetch');
 
+            // Hide all error messages
+            errorImage.classList.add('d-none');
+            errorOperation.classList.add('d-none');
+            errorFetch.classList.add('d-none');
+
+            if (!file) {
+                errorImage.classList.remove('d-none');
+            }
+            if (!operation) {
+                errorOperation.classList.remove('d-none');
+            }
             if (file && operation) {
                 var formData = new FormData();
                 formData.append('image', file);
@@ -82,28 +154,54 @@
                     method: 'POST',
                     body: formData
                 })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Failed to process image');
-                    }
-                    return response.blob();
-                })
-                .then(blob => {
-                    var url = window.URL.createObjectURL(blob);
-                    var a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'processed_image.jpg';
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                });
-            } else {
-                alert('Please select an image and an operation.');
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Failed to process image');
+                        }
+                        return response.blob();
+                    })
+                    .then(blob => {
+                        var url = window.URL.createObjectURL(blob);
+                        var a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'processed_image.jpg';
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        errorFetch.textContent = error.message;
+                        errorFetch.classList.remove('d-none');
+                    });
             }
         }
+
+        function updateNodeStatus(nodeId, status) {
+            var node = document.getElementById(nodeId);
+            var statusText = node.querySelector('span:last-child');
+            statusText.textContent = status;
+            node.className = 'btn btn-status';
+            if (status === 'Online') {
+                node.classList.add('btn-success');
+            } else if (status === 'Offline') {
+                node.classList.add('btn-danger');
+            } else {
+                node.classList.add('btn-secondary');
+            }
+        }
+
+        // Example usage to update node statuses
+        updateNodeStatus('masterNodeStatus', 'Online');
+        updateNodeStatus('workerNode1Status', 'Online');
+        updateNodeStatus('workerNode2Status', 'Offline');
+        updateNodeStatus('workerNode3Status', 'Online');
+        updateNodeStatus('workerNode4Status', 'Offline');
     </script>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
+
 </html>
