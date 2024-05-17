@@ -80,6 +80,12 @@
                     </button>
                 </div>
                 <div class="form-group text-center">
+                    <div class="progress mt-3" style="height: 30px;">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated"
+                            role="progressbar" style="width: 0%">0%</div>
+                    </div>
+                </div>
+                <div class="form-group text-center">
                     <div id="errorImage" class="alert alert-danger d-none" role="alert">Please select an image.</div>
                     <div id="errorOperation" class="alert alert-danger d-none" role="alert">Please select an operation.
                     </div>
@@ -133,6 +139,7 @@
             var errorImage = document.getElementById('errorImage');
             var errorOperation = document.getElementById('errorOperation');
             var errorFetch = document.getElementById('errorFetch');
+            var progressBar = document.getElementById('progressBar');
 
             // Hide all error messages
             errorImage.classList.add('d-none');
@@ -149,6 +156,10 @@
                 var formData = new FormData();
                 formData.append('image', file);
                 formData.append('operation', operation);
+
+                progressBar.style.width = '0%';
+                progressBar.textContent = '0%';
+                progressBar.classList.add('progress-bar-striped', 'progress-bar-animated');
 
                 fetch('http://127.0.0.1:5000/process_image', {
                     method: 'POST',
@@ -168,6 +179,11 @@
                         document.body.appendChild(a);
                         a.click();
                         window.URL.revokeObjectURL(url);
+
+                        // Simulate progress completion
+                        progressBar.style.width = '100%';
+                        progressBar.textContent = '100%';
+                        progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated');
                     })
                     .catch(error => {
                         console.error('Error:', error);
