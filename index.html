@@ -17,6 +17,25 @@
             width: 100%;
         }
 
+        .node-status {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 60px;
+            margin-top: 10px;
+        }
+
+        .btn-status {
+            width: 100px;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .btn-status .node-name {
+            font-weight: bold;
+            display: block;
+        }
+
         @media (max-width: 576px) {
             .form-control-lg {
                 font-size: 1rem;
@@ -62,8 +81,32 @@
                 </div>
                 <div class="form-group text-center">
                     <div id="errorImage" class="alert alert-danger d-none" role="alert">Please select an image.</div>
-                    <div id="errorOperation" class="alert alert-danger d-none" role="alert">Please select an operation.</div>
+                    <div id="errorOperation" class="alert alert-danger d-none" role="alert">Please select an operation.
+                    </div>
                     <div id="errorFetch" class="alert alert-danger d-none" role="alert">Failed to process image.</div>
+                </div>
+                <div class="form-group text-center">
+                    <h4 class="mt-4">Node Status</h4>
+                    <div class="node-status">
+                        <button class="btn btn-status btn-secondary" id="masterNodeStatus"><span
+                                class="node-name">Master Node</span><span>Unknown</span></button>
+                    </div>
+                    <div class="node-status">
+                        <button class="btn btn-status btn-secondary" id="workerNode1Status"><span
+                                class="node-name">Worker Node 1</span><span>Unknown</span></button>
+                    </div>
+                    <div class="node-status">
+                        <button class="btn btn-status btn-secondary" id="workerNode2Status"><span
+                                class="node-name">Worker Node 2</span><span>Unknown</span></button>
+                    </div>
+                    <div class="node-status">
+                        <button class="btn btn-status btn-secondary" id="workerNode3Status"><span
+                                class="node-name">Worker Node 3</span><span>Unknown</span></button>
+                    </div>
+                    <div class="node-status">
+                        <button class="btn btn-status btn-secondary" id="workerNode4Status"><span
+                                class="node-name">Worker Node 4</span><span>Unknown</span></button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -133,6 +176,27 @@
                     });
             }
         }
+
+        function updateNodeStatus(nodeId, status) {
+            var node = document.getElementById(nodeId);
+            var statusText = node.querySelector('span:last-child');
+            statusText.textContent = status;
+            node.className = 'btn btn-status';
+            if (status === 'Online') {
+                node.classList.add('btn-success');
+            } else if (status === 'Offline') {
+                node.classList.add('btn-danger');
+            } else {
+                node.classList.add('btn-secondary');
+            }
+        }
+
+        // Example usage to update node statuses
+        updateNodeStatus('masterNodeStatus', 'Online');
+        updateNodeStatus('workerNode1Status', 'Online');
+        updateNodeStatus('workerNode2Status', 'Offline');
+        updateNodeStatus('workerNode3Status', 'Online');
+        updateNodeStatus('workerNode4Status', 'Offline');
     </script>
 
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
