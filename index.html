@@ -72,6 +72,20 @@
                         <option value="grayscale">Grayscale</option>
                         <option value="blur">Blur</option>
                         <option value="color_inversion">Color Inversion</option>
+                        <option value="edge_detection">Edge Detection</option>
+                        <option value="histogram_equalization">Histogram Equalization</option>
+                        <option value="sharpening">Sharpening</option>
+                        <option value="thresholding">Thresholding</option>
+                        <option value="dilation">Dilation</option>
+                        <option value="erosion">Erosion</option>
+                        <option value="opening">Opening</option>
+                        <option value="closing">Closing</option>
+                        <option value="contour_detection">Contour Detection</option>
+                        <option value="skeletonization">Skeletonization</option>
+                        <option value="distance_transform">Distance Transform</option>
+                        <option value="connected_component_analysis">Connected Component Analysis</option>
+                        <option value="blob_detection">Blob Detection</option>
+                        <option value="hough_transform">Hough Transform</option>
                     </select>
                 </div>
                 <div class="form-group text-center">
@@ -131,6 +145,16 @@
             }
         }
 
+        function updateButtonProcessing() {
+                var processImgBtn = document.getElementById('processImgBtn');
+                processImgBtn.innerHTML = "<i class=\"fas fa-cogs\"></i> Processing...";
+        }
+
+        function updateButtonIdle() {
+                var processImgBtn = document.getElementById('processImgBtn');
+                processImgBtn.innerHTML = "<i class=\"fas fa-cogs\"></i> Process Image";
+        }
+
         function processImage() {
             var uploadInput = document.getElementById('uploadInput');
             var operationSelect = document.getElementById('operationSelect');
@@ -147,14 +171,16 @@
             errorFetch.classList.add('d-none');
             
             processImgBtn.disabled = true;
-
+            updateButtonProcessing();
             if (!file) {
                 errorImage.classList.remove('d-none');
                 processImgBtn.disabled = false;
+                updateButtonIdle();
             }
             if (!operation) {
                 errorOperation.classList.remove('d-none');
                 processImgBtn.disabled = false;
+                updateButtonIdle();
             }
             if (file && operation) {
                 var formData = new FormData();
@@ -173,6 +199,7 @@
                         if (!response.ok) {
                             throw new Error('Failed to process image');
                             processImgBtn.disabled = false;
+                            updateButtonIdle();
                         }
                         return response.blob();
                     })
@@ -190,12 +217,14 @@
                         progressBar.textContent = '100%';
                         progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated');
                         processImgBtn.disabled = false;
+                        updateButtonIdle();
                     })
                     .catch(error => {
                         console.error('Error:', error);
                         errorFetch.textContent = error.message;
                         errorFetch.classList.remove('d-none');
                         processImgBtn.disabled = false;
+                        updateButtonIdle();
                     });
             }
         }
