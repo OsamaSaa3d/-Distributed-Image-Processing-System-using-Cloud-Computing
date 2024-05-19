@@ -1,19 +1,23 @@
-#master code
+# master.py
 import cv2
 import numpy as np
 import io
 import sys
 import time
+import zipfile
 from flask import Flask, request, send_file
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 from mpi4py import MPI
 import boto3
 import json
 import uuid
 import signal
+import threading
 
 app = Flask(__name__)
 CORS(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Initialize S3 and SQS clients
 s3 = boto3.client('s3', region_name='eu-north-1')
@@ -30,6 +34,9 @@ def signal_handler(sig, frame):
 
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
+
+def update_progress_bar(value):
+    socketio.emit('progress_update', {'progress': value})
 
 def split_image(image, num_parts):
     image_parts = np.array_split(image, num_parts, axis=0)
@@ -86,46 +93,93 @@ def delete_message_from_sqs(queue_url, receipt_handle):
 
 @app.route('/process_image', methods=['POST'])
 def process_image():
-
-    print("Master node receiving image and operation...")
-    image_data = request.files['image'].read()
+    images = request.files.getlist('images')
     operation = request.form['operation']
+    num_images = len(images)
 
-    nparr = np.frombuffer(image_data, np.uint8)
-    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if num_images == 1:
+        image_data = images[0].read()
+        nparr = np.frombuffer(image_data, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-    print("Splitting image into parts...")
-    image_parts = split_image(image, size)
+        print("Splitting image into parts...")
+        image_parts = split_image(image, size)
 
-    print("Distributing tasks to worker nodes...")
-    for idx, image_part in enumerate(image_parts):
-        key = f'image_part_{uuid.uuid4()}.jpg'
-        upload_to_s3(image_part, key)
-        group_id = 'image_processing_group'
-        deduplication_id = f'image_part_{idx}_{uuid.uuid4()}'
-        send_message_to_sqs(task_queue_url, key, operation, group_id, deduplication_id)
+        progress_bar_value = 20
+        update_progress_bar(progress_bar_value)
 
-    processed_image_parts = []
-    for _ in range(size):
-        while True:
-            messages = receive_message_from_sqs(response_queue_url)
-            if messages:
-                message = messages[0]
-                body = json.loads(message['Body'])
-                s3_key = body['s3_key']
-                print(f"Downloading processed image part from S3 with key: {s3_key}")
-                processed_image_part = download_from_s3(s3_key)
-                processed_image_parts.append(processed_image_part)
-                delete_message_from_sqs(response_queue_url, message['ReceiptHandle'])
-                break
+        print("Distributing tasks to worker nodes...")
+        for idx, image_part in enumerate(image_parts):
+            key = f'image_part_{uuid.uuid4()}.jpg'
+            upload_to_s3(image_part, key)
+            group_id = 'image_processing_group'
+            deduplication_id = f'image_part_{idx}_{uuid.uuid4()}'
+            send_message_to_sqs(task_queue_url, key, operation, group_id, deduplication_id)
 
-    print("Combining processed images...")
-    combined_image = combine_image(processed_image_parts)
+        processed_image_parts = []
+        for _ in range(size):
+            while True:
+                messages = receive_message_from_sqs(response_queue_url)
+                if messages:
+                    progress_bar_value = progress_bar_value + (60 / size)
+                    message = messages[0]
+                    body = json.loads(message['Body'])
+                    s3_key = body['s3_key']
+                    print(f"Downloading processed image part from S3 with key: {s3_key}")
+                    processed_image_part = download_from_s3(s3_key)
+                    processed_image_parts.append(processed_image_part)
+                    delete_message_from_sqs(response_queue_url, message['ReceiptHandle'])
+                    update_progress_bar(progress_bar_value)
+                    break
 
-    retval, buffer = cv2.imencode('.jpg', combined_image)
-    io_buf = io.BytesIO(buffer)
+        print("Combining processed images...")
+        combined_image = combine_image(processed_image_parts)
 
-    return send_file(io_buf, mimetype='image/jpeg')
+        retval, buffer = cv2.imencode('.jpg', combined_image)
+        io_buf = io.BytesIO(buffer)
+
+        update_progress_bar(100)
+        progress_bar_value = 0
+        return send_file(io_buf, mimetype='image/jpeg', download_name='processed_image.jpg')
+    
+    else:
+        progress_bar_value = 20
+        update_progress_bar(progress_bar_value)
+
+        processed_images = []
+
+        for idx, image_file in enumerate(images):
+            image_data = image_file.read()
+            key = f'image_{uuid.uuid4()}.jpg'
+            upload_to_s3(image_data, key)
+            group_id = 'image_processing_group'
+            deduplication_id = f'image_{idx}_{uuid.uuid4()}'
+            send_message_to_sqs(task_queue_url, key, operation, group_id, deduplication_id)
+
+        for _ in range(num_images):
+            while True:
+                messages = receive_message_from_sqs(response_queue_url)
+                if messages:
+                    progress_bar_value = progress_bar_value + (60 / num_images)
+                    message = messages[0]
+                    body = json.loads(message['Body'])
+                    s3_key = body['s3_key']
+                    print(f"Downloading processed image from S3 with key: {s3_key}")
+                    processed_image_data = download_from_s3(s3_key)
+                    processed_images.append(processed_image_data)
+                    delete_message_from_sqs(response_queue_url, message['ReceiptHandle'])
+                    update_progress_bar(progress_bar_value)
+                    break
+
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'a', zipfile.ZIP_DEFLATED) as zip_file:
+            for idx, img_data in enumerate(processed_images):
+                zip_file.writestr(f'processed_image_{idx+1}.jpg', img_data)
+        zip_buffer.seek(0)
+
+        update_progress_bar(100)
+        progress_bar_value = 0
+        return send_file(zip_buffer, mimetype='application/zip', download_name='processed_images.zip')
 
 if __name__ == '__main__':
     print("Master node starting Flask application...")

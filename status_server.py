@@ -29,9 +29,9 @@ def get_cpu_utilization(instance_id):
         Namespace='AWS/EC2',
         MetricName='CPUUtilization',
         Dimensions=[{'Name': 'InstanceId', 'Value': instance_id}],
-        StartTime=time.time() - 120,  # Last 2 minutes
+        StartTime=time.time() - 60,  # Last 2 minutes
         EndTime=time.time(),
-        Period=60,  # 1-minute granularity
+        Period=30,  # 1-minute granularity
         Statistics=['Average']
     )
     datapoints = response['Datapoints']

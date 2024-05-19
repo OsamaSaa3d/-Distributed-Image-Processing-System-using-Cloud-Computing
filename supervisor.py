@@ -30,13 +30,34 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 def start_worker(worker_id, worker_node):
     command = f"ssh {worker_node} 'python3 Phase4/{WORKER_SCRIPT} {worker_id}'"
-    return subprocess.Popen(command, shell=True, preexec_fn=os.setsid)
+    try:
+        print(f"Worker {worker_node} attempting to start")
+        process = subprocess.Popen(command, shell=True, preexec_fn=os.setsid)
+        print(f"Worker {worker_node} started successfully")
+        return process
+    except Exception as e:
+        print(f"Failed to start worker {worker_id} on node {worker_node}: {e}")
+        return None
 
 def stop_worker(worker_process):
-    os.killpg(os.getpgid(worker_process.pid), signal.SIGTERM)
+    try:
+        os.killpg(os.getpgid(worker_process.pid), signal.SIGTERM)
+    except:
+        pass
+
+def kill_worker_processes(worker_node):
+    command = f"ssh {worker_node} 'pkill -f {WORKER_SCRIPT}'"
+    try:
+        result = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if result.returncode == 0:
+            print(f"Successfully killed worker processes on node {worker_node}")
+        else:
+            print(f"Failed to kill worker processes on node {worker_node}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error killing worker processes on node {worker_node}: {e}")
 
 def restart_worker(worker_process, worker_id, worker_node):
-    stop_worker(worker_process)
+    kill_worker_processes(worker_process)
     return start_worker(worker_id, worker_node)
 
 def start_supervisor():
@@ -47,14 +68,13 @@ def start_supervisor():
     for i in range(1, NUM_WORKERS + 1):
         worker_node = WORKER_NODES[i - 1]
         workers[i] = start_worker(i, worker_node)
-    
     try:
         while True:
             for worker_id, worker_process in workers.items():
                 if worker_process.poll() is not None:
                     print(f"Worker {worker_id} on {WORKER_NODES[worker_id - 1]} failed. Restarting...")
                     workers[worker_id] = restart_worker(worker_process, worker_id, WORKER_NODES[worker_id - 1])
-            time.sleep(5)
+            #time.sleep(2)
             
     except KeyboardInterrupt:
         print("Shutting down supervisor...")

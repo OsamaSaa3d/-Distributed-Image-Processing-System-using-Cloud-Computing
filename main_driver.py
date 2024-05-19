@@ -13,7 +13,7 @@ def signal_handler(sig, frame):
         except OSError:
             pass
     
-    time.sleep(5)
+    time.sleep(10)
     print("Terminating failed, forcefully killing process(es)...")
     # Force kill the processes if they are still running
     for process in processes:
